@@ -1,9 +1,9 @@
 [build]
 builder = "nixpacks"
 nixpacksConfigPath = "backend/nixpacks.json"
+watchPatterns = ["backend/**"]
 
 [deploy]
-workingDirectory = "backend"
-startCommand = "npm start"
+startCommand = "cd backend && npm start"
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 10
