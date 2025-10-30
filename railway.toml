@@ -4,6 +4,6 @@ nixpacksConfigPath = "backend/nixpacks.json"
 watchPatterns = ["backend/**"]
 
 [deploy]
-startCommand = "cd backend && npm start"
+startCommand = "cd backend && bash start.sh"
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 10
