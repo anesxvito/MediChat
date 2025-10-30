@@ -8,10 +8,13 @@
       "cmds": ["cd backend && npm install"]
     },
     "build": {
-      "cmds": ["cd backend && npx prisma generate"]
+      "cmds": [
+        "cd backend && npx prisma generate",
+        "cd backend && npx prisma migrate deploy"
+      ]
     }
   },
   "start": {
-    "cmd": "cd backend && npx prisma migrate deploy && npm start"
+    "cmd": "cd backend && npm start"
   }
 }
