@@ -12,6 +12,6 @@
     }
   },
   "start": {
-    "cmd": "cd backend && npm start"
+    "cmd": "cd backend && npx prisma migrate deploy && npm start"
   }
 }
