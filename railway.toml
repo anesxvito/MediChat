@@ -1,11 +1,9 @@
 [build]
 builder = "nixpacks"
-buildCommand = "cd backend && npm install && npx prisma generate"
+nixpacksConfigPath = "backend/nixpacks.json"
 
 [deploy]
-startCommand = "cd backend && npm start"
+workingDirectory = "backend"
+startCommand = "npm start"
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 10
-
-[env]
-NODE_ENV = "production"

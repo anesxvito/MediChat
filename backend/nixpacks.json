@@ -1,0 +1,18 @@
+{
+  "providers": ["node"],
+  "phases": {
+    "setup": {
+      "nixPkgs": ["nodejs_20", "openssl"],
+      "aptPkgs": []
+    },
+    "install": {
+      "cmds": ["npm install"]
+    },
+    "build": {
+      "cmds": ["npx prisma generate"]
+    }
+  },
+  "start": {
+    "cmd": "npm start"
+  }
+}
