@@ -4,8 +4,6 @@ services:
     name: medichat-db
     plan: free
     env: docker
-    region: oregon
-    ipAllowList: []
 
   # Backend API (Node.js + Express + Socket.IO)
   - type: web
@@ -37,7 +35,6 @@ services:
     name: medichat-frontend
     runtime: static
     plan: free
-    region: oregon
     buildCommand: cd frontend && npm install && npm run build
     staticPublishPath: frontend/build
     envVars:
