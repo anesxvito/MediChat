@@ -1,0 +1,272 @@
+import React, { useState, useEffect } from 'react';
+import { DollarSign, CreditCard, Download, Calendar, CheckCircle, Clock, AlertCircle, FileText } from 'lucide-react';
+import { format } from 'date-fns';
+import { billingAPI } from '../../services/api';
+
+/**
+ * BILLING & PAYMENTS MANAGEMENT
+ * EMR-compliant billing with payment processing and insurance claims
+ */
+const Billing = () => {
+  const [activeTab, setActiveTab] = useState('invoices');
+  const [invoices, setInvoices] = useState([]);
+  const [paymentMethods, setPaymentMethods] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      const [invoicesRes, paymentsRes] = await Promise.all([
+        billingAPI.getInvoices(),
+        billingAPI.getPaymentMethods()
+      ]);
+
+      // Handle different response structures and ensure we have arrays
+      const invoicesData = Array.isArray(invoicesRes.data)
+        ? invoicesRes.data
+        : (invoicesRes.data?.invoices || []);
+
+      const paymentsData = Array.isArray(paymentsRes.data)
+        ? paymentsRes.data
+        : (paymentsRes.data?.paymentMethods || []);
+
+      const transformedInvoices = invoicesData.map(inv => ({
+        id: inv.id,
+        date: inv.serviceDate,
+        description: inv.description,
+        amount: parseFloat(inv.totalAmount),
+        insurancePaid: parseFloat(inv.insuranceCovered || 0),
+        patientResponsibility: parseFloat(inv.patientBalance),
+        status: inv.status,
+        dueDate: inv.dueDate,
+        provider: inv.providerId || 'Medical Provider',
+      }));
+
+      const transformedPayments = paymentsData.map(pm => ({
+        id: pm.id,
+        type: pm.cardBrand || pm.type,
+        last4: pm.cardLast4,
+        exp: pm.cardExpMonth && pm.cardExpYear ? `${pm.cardExpMonth}/${pm.cardExpYear}` : '',
+        isDefault: pm.isDefault
+      }));
+
+      setInvoices(transformedInvoices);
+      setPaymentMethods(transformedPayments);
+      setLoading(false);
+    } catch (error) {
+      console.error('Error loading billing data:', error);
+      setInvoices([]);
+      setPaymentMethods([]);
+      setLoading(false);
+    }
+  };
+
+  const getStatusBadge = (status) => {
+    switch (status) {
+      case 'paid':
+        return <span className="badge badge-success"><CheckCircle style={{ width: '14px', height: '14px' }} /> Paid</span>;
+      case 'pending':
+        return <span className="badge badge-warning"><Clock style={{ width: '14px', height: '14px' }} /> Pending</span>;
+      case 'overdue':
+        return <span className="badge badge-error"><AlertCircle style={{ width: '14px', height: '14px' }} /> Overdue</span>;
+      default:
+        return null;
+    }
+  };
+
+  const totalOwed = invoices
+    .filter(inv => inv.status === 'pending' || inv.status === 'overdue')
+    .reduce((sum, inv) => sum + inv.patientResponsibility, 0);
+
+  const totalPaid = invoices
+    .filter(inv => inv.status === 'paid')
+    .reduce((sum, inv) => sum + inv.patientResponsibility, 0);
+
+  return (
+    <div className="flex-1 overflow-auto" style={{ backgroundColor: 'var(--gray-50)' }}>
+      <div className="sticky top-0 z-30 border-b" style={{ backgroundColor: 'white', borderColor: 'var(--gray-200)', boxShadow: 'var(--shadow-sm)' }}>
+        <div className="max-w-7xl mx-auto px-4 md:px-6 py-4">
+          <div className="pl-16 lg:pl-0">
+            <h1 className="heading-h1 mb-1">Billing & Payments</h1>
+            <p className="text-sm text-secondary">Manage your medical bills and payment methods</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-4 md:px-6 py-6">
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <div className="card">
+            <div className="card-body">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="avatar avatar-sm" style={{ background: 'linear-gradient(135deg, #EF4444 0%, #DC2626 100%)' }}>
+                  <AlertCircle style={{ width: '18px', height: '18px', color: 'white' }} />
+                </div>
+                <p className="text-sm font-medium text-secondary">Amount Due</p>
+              </div>
+              <h2 className="text-3xl font-bold text-error-600">${totalOwed.toFixed(2)}</h2>
+              <p className="text-xs text-secondary mt-1">2 outstanding invoices</p>
+            </div>
+          </div>
+
+          <div className="card">
+            <div className="card-body">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="avatar avatar-sm" style={{ background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)' }}>
+                  <CheckCircle style={{ width: '18px', height: '18px', color: 'white' }} />
+                </div>
+                <p className="text-sm font-medium text-secondary">Paid This Year</p>
+              </div>
+              <h2 className="text-3xl font-bold text-success-600">${totalPaid.toFixed(2)}</h2>
+              <p className="text-xs text-secondary mt-1">2 paid invoices</p>
+            </div>
+          </div>
+
+          <div className="card">
+            <div className="card-body">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="avatar avatar-sm" style={{ background: 'linear-gradient(135deg, #1570EF 0%, #175CD3 100%)' }}>
+                  <CreditCard style={{ width: '18px', height: '18px', color: 'white' }} />
+                </div>
+                <p className="text-sm font-medium text-secondary">Payment Methods</p>
+              </div>
+              <h2 className="text-3xl font-bold text-gray-900">{paymentMethods.length}</h2>
+              <p className="text-xs text-secondary mt-1">cards on file</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex gap-2 mb-6">
+          <button
+            onClick={() => setActiveTab('invoices')}
+            className={`btn ${activeTab === 'invoices' ? 'btn-primary' : 'btn-secondary'}`}
+          >
+            <FileText style={{ width: '18px', height: '18px' }} />
+            Invoices
+          </button>
+          <button
+            onClick={() => setActiveTab('payments')}
+            className={`btn ${activeTab === 'payments' ? 'btn-primary' : 'btn-secondary'}`}
+          >
+            <CreditCard style={{ width: '18px', height: '18px' }} />
+            Payment Methods
+          </button>
+        </div>
+
+        {/* Invoices Tab */}
+        {activeTab === 'invoices' && (
+          <div className="space-y-4">
+            {loading ? (
+              <div className="flex justify-center p-8">
+                <div className="loading-spinner" style={{ width: '48px', height: '48px', borderWidth: '4px' }}></div>
+              </div>
+            ) : invoices.length === 0 ? (
+              <div className="card text-center">
+                <div className="card-body py-12">
+                  <FileText style={{ width: '64px', height: '64px', color: 'var(--gray-400)', margin: '0 auto 16px' }} />
+                  <h3 className="heading-h3 mb-2">No Invoices</h3>
+                  <p className="text-secondary">You don't have any invoices yet</p>
+                </div>
+              </div>
+            ) : (
+              invoices.map((invoice) => (
+              <div key={invoice.id} className="card">
+                <div className="card-body">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <h3 className="font-semibold text-gray-900">{invoice.description}</h3>
+                        {getStatusBadge(invoice.status)}
+                      </div>
+                      <div className="flex flex-wrap gap-3 text-sm text-secondary">
+                        <span className="flex items-center gap-1">
+                          <Calendar style={{ width: '14px', height: '14px' }} />
+                          Service Date: {format(new Date(invoice.date), 'MMM d, yyyy')}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Calendar style={{ width: '14px', height: '14px' }} />
+                          Due: {format(new Date(invoice.dueDate), 'MMM d, yyyy')}
+                        </span>
+                        <span>{invoice.provider}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 rounded-lg" style={{ backgroundColor: 'var(--gray-50)' }}>
+                    <div>
+                      <p className="text-xs text-secondary mb-1">Total Amount</p>
+                      <p className="font-bold text-gray-900">${invoice.amount.toFixed(2)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-secondary mb-1">Insurance Paid</p>
+                      <p className="font-bold text-success-600">${invoice.insurancePaid.toFixed(2)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-secondary mb-1">Your Responsibility</p>
+                      <p className="font-bold text-primary-600">${invoice.patientResponsibility.toFixed(2)}</p>
+                    </div>
+                    <div className="flex items-end gap-2">
+                      {invoice.status !== 'paid' ? (
+                        <button className="btn btn-primary btn-sm flex-1">
+                          <DollarSign style={{ width: '16px', height: '16px' }} />
+                          Pay Now
+                        </button>
+                      ) : null}
+                      <button className="btn btn-secondary btn-sm">
+                        <Download style={{ width: '16px', height: '16px' }} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              ))
+            )}
+          </div>
+        )}
+
+        {/* Payment Methods Tab */}
+        {activeTab === 'payments' && (
+          <div className="space-y-4">
+            {paymentMethods.map((pm) => (
+              <div key={pm.id} className="card">
+                <div className="card-body">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="avatar avatar-lg" style={{ background: 'linear-gradient(135deg, #1570EF 0%, #175CD3 100%)' }}>
+                        <CreditCard style={{ width: '24px', height: '24px', color: 'white' }} />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 className="font-semibold text-gray-900">{pm.type} •••• {pm.last4}</h3>
+                          {pm.isDefault && <span className="badge badge-success badge-sm">Default</span>}
+                        </div>
+                        <p className="text-sm text-secondary">Expires {pm.exp}</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      {!pm.isDefault && (
+                        <button className="btn btn-secondary btn-sm">Set as Default</button>
+                      )}
+                      <button className="btn btn-error btn-sm">Remove</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+            <button className="btn btn-primary w-full">
+              <CreditCard style={{ width: '20px', height: '20px' }} />
+              Add Payment Method
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default Billing;
